@@ -1,0 +1,9 @@
+**/target
+.git
+.idea
+.cursor
+*.md
+!SPECS.md
+Backup*
+jd.md
+ProblemStatement.md

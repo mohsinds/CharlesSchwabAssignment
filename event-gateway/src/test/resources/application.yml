@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: event-gateway
+  datasource:
+    url: jdbc:h2:mem:gateway-test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+gateway:
+  account-service:
+    base-url: http://localhost:18081
+    connect-timeout: 500ms
+    read-timeout: 1s
+  async-fallback:
+    enabled: true
+  outbox:
+    drain-interval-ms: 60000
+  rate-limit:
+    limit-for-period: 1000
+    limit-refresh-period: 1s
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      accountService:
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.RestClientException
+          - java.io.IOException
+  retry:
+    instances:
+      accountService:
+        maxAttempts: 3
+        waitDuration: 50ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.5
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.RestClientException
+        ignoreExceptions:
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          - org.springframework.web.client.HttpClientErrorException
+  ratelimiter:
+    instances:
+      postEvents:
+        limitForPeriod: 1000
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      export:
+        enabled: false
+  observations:
+    http:
+      client:
+        requests:
+          enabled: true
+
+logging:
+  level:
+    root: WARN
+    com.schwab.eventledger: INFO
