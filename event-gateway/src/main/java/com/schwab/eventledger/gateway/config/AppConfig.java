@@ -2,8 +2,8 @@ package com.schwab.eventledger.gateway.config;
 
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.client.ClientHttpRequestFactories;
-import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -20,12 +20,12 @@ public class AppConfig {
             GatewayProperties properties,
             ObservationRegistry observationRegistry,
             TracePropagationInterceptor tracePropagationInterceptor) {
-        ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.DEFAULTS
+        ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.defaults()
                 .withConnectTimeout(properties.getAccountService().getConnectTimeout())
                 .withReadTimeout(properties.getAccountService().getReadTimeout());
         return builder
                 .baseUrl(properties.getAccountService().getBaseUrl())
-                .requestFactory(ClientHttpRequestFactories.get(settings))
+                .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(settings))
                 .observationRegistry(observationRegistry)
                 .requestInterceptor(tracePropagationInterceptor)
                 .build();
