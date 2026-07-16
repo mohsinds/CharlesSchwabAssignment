@@ -4,6 +4,7 @@ Take-home for Charles Schwab: two independently runnable Spring Boot microservic
 
 Architecture and decisions: [`SPECS.md`](SPECS.md).  
 Project knowledge (lifecycle, function index, scope): [`PROJECT.md`](PROJECT.md).  
+Testing / CI / Allure / Sonar: [`TESTING_REPORT.md`](TESTING_REPORT.md).  
 Diagnose: Cursor `/diagnose` or `bash .cursor/skills/diagnose-event-ledger/scripts/diagnose.sh`.
 
 ---
@@ -91,6 +92,23 @@ Observability (docker compose — also works with Maven/IDE apps):
 - JDK 21+
 - Maven 3.9+
 - Docker + Docker Compose (preferred run path)
+- Optional for CI Sonar: repo secret `SONAR_TOKEN` (skipped if unset; JaCoCo still enforces 80%)
+
+---
+
+## CI / quality
+
+| Check | Detail |
+|-------|--------|
+| Workflow | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — **CI Pipeline** / **test-and-quality** |
+| Coverage | JaCoCo line coverage ≥ **80%** (`mvn verify`) |
+| Static analysis | SonarCloud project `mohsinds_CharlesSchwabAssignment` (gate wait in CI) |
+| Test report | Allure → GitHub Pages on green `main` pushes |
+| Full matrix | [`TESTING_REPORT.md`](TESTING_REPORT.md) |
+
+```bash
+mvn -B verify
+```
 
 ---
 
@@ -285,11 +303,13 @@ Both services use `server.shutdown=graceful` (30s phase). Gateway pauses outbox 
 
 ```text
 .
+├── TESTING_REPORT.md
 ├── SPECS.md
 ├── PROJECT.md
 ├── README.md
 ├── pom.xml
 ├── docker-compose.yml
+├── .github/workflows/ci.yml
 ├── otel-collector-config.yaml
 ├── prometheus.yml
 ├── prometheus.local.yml

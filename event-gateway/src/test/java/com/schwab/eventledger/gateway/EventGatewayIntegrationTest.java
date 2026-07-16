@@ -5,7 +5,6 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.schwab.eventledger.gateway.domain.EventRepository;
 import com.schwab.eventledger.gateway.domain.EventStatus;
 import com.schwab.eventledger.gateway.service.OutboxDrainService;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -255,6 +254,10 @@ class EventGatewayIntegrationTest {
     }
 
     @Test
+    @io.qameta.allure.Epic("Event Gateway")
+    @io.qameta.allure.Feature("Circuit breaker")
+    @io.qameta.allure.Story("Failure recording")
+    @org.junit.jupiter.api.DisplayName("Repeated Account 500s record failed calls on the circuit breaker")
     void opensCircuitBreakerAfterRepeatedFailures() throws Exception {
         wireMock.stubFor(WireMock.post(urlPathMatching("/accounts/.*/transactions"))
                 .willReturn(aResponse().withStatus(500)));
@@ -263,9 +266,6 @@ class EventGatewayIntegrationTest {
             postEvent("evt-cb-" + i, "acct-cb", "CREDIT", "1.00", "2026-05-15T14:00:00Z");
         }
 
-        CircuitBreaker.State state = circuitBreakerRegistry.circuitBreaker("accountService").getState();
-        assertThat(state).isIn(CircuitBreaker.State.OPEN, CircuitBreaker.State.HALF_OPEN, CircuitBreaker.State.CLOSED);
-        // With async fallback, requests are accepted as PENDING; circuit should trend toward OPEN
         assertThat(circuitBreakerRegistry.circuitBreaker("accountService").getMetrics().getNumberOfFailedCalls())
                 .isGreaterThan(0);
     }

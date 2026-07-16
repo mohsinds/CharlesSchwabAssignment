@@ -9,3 +9,6 @@ target/
 .vscode/
 *.class
 pacts/out/
+allure-results/
+allure-report/
+allure-results-combined/

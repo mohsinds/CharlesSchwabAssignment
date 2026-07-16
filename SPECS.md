@@ -311,17 +311,21 @@ Broker-less; pacts committed under `pacts/`.
 | Idempotency | Double POST → 200; balance unchanged |
 | Out-of-order | List order + balance math |
 | Validation | 400 for bad payloads |
-| Circuit breaker | WireMock failures → open → fail-fast |
-| Retry + jitter | Flaky 500 then 200 succeeds; bounded attempts |
+| Circuit breaker | Failures → OPEN → fail-fast 202/503 |
+| Retry + jitter | Configurable `maxAttempts`; 4xx not retried |
 | Rate limit | Burst → 429 |
 | Async fallback | Account down → 202 PENDING → drain → APPLIED |
+| Outbox reject | Permanent Account 4xx → `REJECTED` |
+| NSF guard | `allowed-negative-balance=false` → 422 |
+| Graceful shutdown | Outbox drain paused; Tomcat graceful |
 | Strict 503 mode | `async-fallback=false` → 503; GETs still work |
 | Trace propagation | Same traceId across hop |
 | Prometheus | Custom series present |
 | Pact | Consumer + provider verify |
 | Integration | Full Gateway → Account flow |
+| CI quality | JaCoCo ≥ 80%, SonarCloud gate, Allure on Pages |
 
-Command: `mvn test`
+Command: `mvn verify` (see [`TESTING_REPORT.md`](TESTING_REPORT.md))
 
 ---
 

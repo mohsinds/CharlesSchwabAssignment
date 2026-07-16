@@ -2,6 +2,7 @@
 
 Canonical operator/agent reference for architecture, scope, request lifecycle, and key symbols.  
 Locked design decisions live in [`SPECS.md`](SPECS.md). Runbook: [`README.md`](README.md).  
+Testing / CI: [`TESTING_REPORT.md`](TESTING_REPORT.md).  
 Diagnose: Cursor command `/diagnose` or skill `diagnose-event-ledger`.
 
 ---
@@ -169,3 +170,9 @@ AccountController.applyTransaction
 ## 8. Doc maintenance
 
 Cursor rule `.cursor/rules/update-docs.mdc` requires updating **README.md**, **SPECS.md**, and this file whenever behavior/config/API/scope changes.
+
+## 9. Quality bar
+
+- `mvn verify` — tests + JaCoCo ≥ 80% line coverage
+- CI: `.github/workflows/ci.yml` job **test-and-quality** (SonarCloud gate + Allure → GitHub Pages)
+- Details: [`TESTING_REPORT.md`](TESTING_REPORT.md)
