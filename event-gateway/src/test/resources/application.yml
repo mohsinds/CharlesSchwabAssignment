@@ -1,6 +1,8 @@
 spring:
   application:
     name: event-gateway
+  profiles:
+    active: test
   datasource:
     url: jdbc:h2:mem:gateway-test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
     username: sa

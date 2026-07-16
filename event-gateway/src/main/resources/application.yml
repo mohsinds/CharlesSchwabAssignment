@@ -100,15 +100,38 @@ management:
     metrics:
       export:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      service: ${spring.application.name}
+      env: ${APP_ENV:local}
+      namespace: event-ledger
+  observations:
+    key-values:
+      service: ${spring.application.name}
+      env: ${APP_ENV:local}
+      namespace: event-ledger
   tracing:
     sampling:
       probability: 1.0
   otlp:
     tracing:
       endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+  opentelemetry:
+    resource-attributes:
+      "[service.namespace]": event-ledger
+      "[deployment.environment]": ${APP_ENV:local}
+
+app:
+  env: ${APP_ENV:local}
+
+loki:
+  url: ${LOKI_URL:http://localhost:3100/loki/api/v1/push}
+  enabled: ${LOKI_ENABLED:true}
 
 logging:
   level:
     root: INFO
     com.schwab.eventledger: INFO
     io.github.resilience4j: INFO
+    com.github.loki4j: WARN

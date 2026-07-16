@@ -2,10 +2,13 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <springProperty name="serviceName" source="spring.application.name" defaultValue="event-gateway"/>
+    <springProperty name="appEnv" source="app.env" defaultValue="local"/>
+    <springProperty name="lokiUrl" source="loki.url" defaultValue="http://localhost:3100/loki/api/v1/push"/>
 
     <!--
       Structured JSON logs for the assignment observability requirement:
       timestamp, level, service name, message, and Micrometer Tracing MDC (traceId/spanId).
+      Tags (service, env, namespace) are mirrored into Loki labels for Grafana filtering.
     -->
     <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
@@ -31,7 +34,7 @@
                     <fieldName>stack_trace</fieldName>
                 </stackTrace>
                 <pattern>
-                    <pattern>{"service":"${serviceName}"}</pattern>
+                    <pattern>{"service":"${serviceName}","env":"${appEnv}","namespace":"event-ledger"}</pattern>
                 </pattern>
                 <mdc>
                     <includeMdcKeyName>traceId</includeMdcKeyName>
@@ -41,7 +44,48 @@
         </encoder>
     </appender>
 
-    <root level="INFO">
-        <appender-ref ref="JSON"/>
-    </root>
+    <!--
+      Push JSON logs to Loki — works for Maven/IDE local runs (localhost:3100)
+      and Docker Compose (LOKI_URL=http://loki:3100/...). Async + soft-fail if Loki is down.
+    -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <labels>
+            service = ${serviceName}
+            env = ${appEnv}
+            namespace = event-ledger
+            application = ${serviceName}
+        </labels>
+        <structuredMetadata>
+            level = %level
+            logger = %logger
+            thread = %thread
+        </structuredMetadata>
+        <message>
+            <pattern>{"timestamp":"%date{yyyy-MM-dd'T'HH:mm:ss.SSSX, UTC}","level":"%level","service":"${serviceName}","env":"${appEnv}","namespace":"event-ledger","logger":"%logger","thread":"%thread","message":"%message","traceId":"%X{traceId}","spanId":"%X{spanId}"}%n%ex</pattern>
+        </message>
+        <http>
+            <url>${lokiUrl}</url>
+            <connectionTimeoutMs>1000</connectionTimeoutMs>
+            <requestTimeoutMs>2000</requestTimeoutMs>
+            <maxRetries>0</maxRetries>
+        </http>
+        <batch>
+            <maxItems>50</maxItems>
+            <timeoutMs>2000</timeoutMs>
+            <drainOnStop>false</drainOnStop>
+        </batch>
+    </appender>
+
+    <!-- Tests use spring.profiles.active=test → console only (no Loki push). -->
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+    <springProfile name="!test">
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="LOKI"/>
+        </root>
+    </springProfile>
 </configuration>

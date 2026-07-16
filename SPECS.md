@@ -227,13 +227,16 @@ Bulkhead is a valid alternative (thread-pool isolation) but is not the primary p
 
 ### Logs (JSON)
 
-Fields: `timestamp`, `level`, `service`, `traceId`, `spanId`, `message` (+ optional `logger`).
+Fields: `timestamp`, `level`, `service`, `env`, `namespace`, `traceId`, `spanId`, `message` (+ optional `logger`).
+
+Pushed to **Loki** with labels `service`, `env`, `namespace=event-ledger` for Grafana (works for Compose and local Maven).
 
 ### Tracing
 
 - Gateway creates root span per request
 - Propagate W3C `traceparent` to Account Service
 - Export OTLP → OpenTelemetry Collector → Jaeger
+- Resource tags: `service.namespace=event-ledger`, `deployment.environment`
 
 ### Metrics (custom)
 
@@ -241,6 +244,12 @@ Fields: `timestamp`, `level`, `service`, `traceId`, `spanId`, `message` (+ optio
 - `account_service_call_duration_seconds`
 - `outbox_pending_events` (gauge)
 - `outbox_drain_success_total`
+- Common tags on all series: `application`, `service`, `env`, `namespace`
+
+### Grafana
+
+- Datasources: Prometheus, Loki, Jaeger
+- Dashboards: Event Ledger Overview, Jaeger Monitor (`grafana/dashboards/`)
 
 ### Health
 
@@ -269,6 +278,9 @@ Broker-less; pacts committed under `pacts/`.
 ├── docker-compose.yml
 ├── otel-collector-config.yaml
 ├── prometheus.yml
+├── prometheus.local.yml
+├── loki-config.yaml
+├── grafana/
 ├── pacts/
 ├── event-gateway/
 └── account-service/

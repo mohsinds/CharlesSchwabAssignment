@@ -28,6 +28,7 @@
         <java.version>21</java.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
+        <loki-logback-appender.version>2.0.3</loki-logback-appender.version>
         <pact.version>4.6.14</pact.version>
         <wiremock.version>3.10.0</wiremock.version>
         <springdoc.version>2.8.5</springdoc.version>
@@ -49,6 +50,11 @@
                 <groupId>net.logstash.logback</groupId>
                 <artifactId>logstash-logback-encoder</artifactId>
                 <version>${logstash-logback-encoder.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.loki4j</groupId>
+                <artifactId>loki-logback-appender</artifactId>
+                <version>${loki-logback-appender.version}</version>
             </dependency>
             <dependency>
                 <groupId>au.com.dius.pact.consumer</groupId>

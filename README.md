@@ -23,9 +23,12 @@ event-gateway :8080
 account-service :8081
   Idempotent ledger (H2) → Balance = Σ CREDIT − Σ DEBIT
 
-Observability (docker compose):
+Observability (docker compose — also works with Maven/IDE apps):
   apps ──OTLP──► otel-collector ──► jaeger (:16686)
-  prometheus (:9090) scrapes /actuator/prometheus
+  apps ──HTTP──► loki (:3100)  ◄── grafana (:3000)
+  prometheus (:9090) scrapes /actuator/prometheus (+ jaeger metrics)
+  grafana datasources: Prometheus, Loki, Jaeger
+  tags on metrics/logs/traces: service, env, namespace=event-ledger
 ```
 
 - Services are separate JVMs with **separate H2 databases** (no shared state).
@@ -66,8 +69,9 @@ Observability (docker compose):
 | Resiliency | Resilience4j CircuitBreaker + Retry (exp backoff + jitter) + RateLimiter |
 | Async fallback | Local H2 outbox + scheduled drain |
 | Tracing | Micrometer Tracing → OTLP → OpenTelemetry Collector → Jaeger |
-| Metrics | Micrometer + `/actuator/prometheus` |
-| Structured logs | JSON (`timestamp`, `level`, `service`, `traceId`) via Logstash encoder |
+| Metrics | Micrometer + `/actuator/prometheus` (+ common tags) |
+| Logs | JSON to console + Loki push (Grafana) |
+| Dashboards | Grafana (Event Ledger Overview + Jaeger Monitor) |
 | Contracts | Pact (consumer Gateway / provider Account) |
 | Run | Docker Compose |
 
@@ -116,14 +120,38 @@ docker compose up --build
 | Account Swagger UI | http://localhost:8081/swagger-ui.html |
 | Gateway H2 console | http://localhost:8080/h2-console |
 | Account H2 console | http://localhost:8081/h2-console |
+| Grafana | http://localhost:3000 (admin / admin) |
 | Jaeger UI | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
+| Loki | http://localhost:3100 |
+
+Provisioned Grafana dashboards (folder **Event Ledger**):
+
+- **Event Ledger Overview** — metrics + Loki logs (filter by `service` / `env` tags)
+- **Jaeger Monitor** — Jaeger collector health + recent traces + correlated logs
 
 ```bash
 docker compose down
 ```
 
-### Option B — Manual
+### Option B — Local apps + observability stack
+
+Run Grafana / Loki / Jaeger / Prometheus in Docker while the JVMs run on the host (Maven or IDE). Apps push logs to `localhost:3100` and traces to `localhost:4318` by default.
+
+```bash
+# Observability only (Prometheus scrapes host.docker.internal)
+PROMETHEUS_CONFIG=./prometheus.local.yml docker compose up jaeger otel-collector prometheus loki grafana
+
+# Terminal 1 — Account
+mvn -pl account-service spring-boot:run
+
+# Terminal 2 — Gateway
+mvn -pl event-gateway spring-boot:run
+```
+
+Then open Grafana at http://localhost:3000 — same dashboards as the full Compose path.
+
+### Option C — Apps only (no observability containers)
 
 ```bash
 # Terminal 1
@@ -132,6 +160,8 @@ mvn -pl account-service spring-boot:run
 # Terminal 2
 mvn -pl event-gateway spring-boot:run
 ```
+
+Logs still print JSON to the console; Loki push fails soft if Loki is not running.
 
 ### Smoke test
 
@@ -215,8 +245,9 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 
 | Bonus | Implementation |
 |-------|----------------|
-| OTel Collector + Jaeger | `docker-compose.yml` (`otel-collector`, `jaeger`) |
-| Prometheus metrics | `/actuator/prometheus` + custom counters/gauges |
+| OTel Collector + Jaeger | `docker-compose.yml` (`otel-collector`, `jaeger`) + Grafana Jaeger Monitor |
+| Prometheus metrics | `/actuator/prometheus` + custom counters/gauges + common tags |
+| Grafana + Loki | Log push from both services; provisioned dashboards (local Maven + Compose) |
 | Retry + exp backoff + jitter | Resilience4j Retry on Account client |
 | Rate limiting | Resilience4j RateLimiter on `POST /events` → `429` |
 | Pact contracts | `pacts/event-gateway-account-service.json` + consumer/provider tests |
@@ -240,6 +271,11 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 ├── docker-compose.yml
 ├── otel-collector-config.yaml
 ├── prometheus.yml
+├── prometheus.local.yml
+├── loki-config.yaml
+├── grafana/
+│   ├── provisioning/
+│   └── dashboards/
 ├── pacts/
 ├── event-gateway/
 └── account-service/

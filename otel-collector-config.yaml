@@ -8,6 +8,15 @@ receivers:
 
 processors:
   batch: {}
+  # Shared tags visible in Jaeger / Grafana for every span
+  resource:
+    attributes:
+      - key: service.namespace
+        value: event-ledger
+        action: upsert
+      - key: deployment.environment
+        value: local
+        action: insert
 
 exporters:
   otlp/jaeger:
@@ -21,5 +30,5 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [resource, batch]
       exporters: [otlp/jaeger, debug]

@@ -1,0 +1,299 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Jaeger Monitor — collector/agent health plus recent traces via the Jaeger datasource. Filter spans by service.namespace=event-ledger and deployment.environment tags.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": true,
+      "title": "Jaeger UI",
+      "type": "link",
+      "url": "http://localhost:16686/search?service=event-gateway"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "title": "Event Ledger Overview",
+      "type": "link",
+      "url": "/d/event-ledger-overview/event-ledger-overview"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "options": { "0": { "color": "red", "text": "DOWN" }, "1": { "color": "green", "text": "UP" } }, "type": "value" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "title": "Jaeger scrape UP",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "up{job=\"jaeger\"}",
+          "legendFormat": "jaeger",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "title": "Traces received (rate)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(jaeger_collector_spans_received_total[1m])) or sum(rate(jaeger_collector_traces_received_total[1m])) or vector(0)",
+          "legendFormat": "spans/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "title": "Gateway HTTP server requests",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{service=\"event-gateway\",uri=~\"/events.*|/accounts.*\"}[1m])) or sum(rate(http_server_requests_seconds_count{application=\"event-gateway\"}[1m])) or vector(0)",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "title": "Account HTTP server requests",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{service=\"account-service\",uri=~\"/accounts.*\"}[1m])) or sum(rate(http_server_requests_seconds_count{application=\"account-service\"}[1m])) or vector(0)",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "title": "Jaeger collector span ingest",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(jaeger_collector_spans_received_total[1m]))",
+          "legendFormat": "received",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(jaeger_collector_spans_rejected_total[1m])) or vector(0)",
+          "legendFormat": "rejected",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(jaeger_collector_spans_saved_total[1m])) or sum(rate(jaeger_spans_saved_by_svc_total[1m])) or vector(0)",
+          "legendFormat": "saved",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "title": "HTTP latency by service (p95)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (service, le) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[1m])))",
+          "legendFormat": "{{service}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "id": 7,
+      "options": {},
+      "title": "Recent traces (Jaeger) — filter by tagged services",
+      "type": "traces",
+      "targets": [
+        {
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
+          "queryType": "search",
+          "service": "${service:text}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "id": 8,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": true,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "title": "Correlated logs (namespace=event-ledger)",
+      "type": "logs",
+      "targets": [
+        {
+          "expr": "{namespace=\"event-ledger\", service=~\"$service\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.service}} trace={{.traceId}} {{.message}}\"",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["event-ledger", "jaeger", "tracing"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "event-gateway", "value": "event-gateway" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "service",
+        "multi": false,
+        "name": "service",
+        "options": [
+          { "selected": true, "text": "event-gateway", "value": "event-gateway" },
+          { "selected": false, "text": "account-service", "value": "account-service" }
+        ],
+        "query": "event-gateway,account-service",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Jaeger Monitor",
+  "uid": "jaeger-monitor",
+  "version": 1,
+  "weekStart": ""
+}
