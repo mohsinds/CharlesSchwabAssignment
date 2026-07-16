@@ -4,8 +4,6 @@ Take-home for Charles Schwab: two independently runnable Spring Boot microservic
 
 Architecture and decisions: [`SPECS.md`](SPECS.md).  
 Project knowledge (lifecycle, function index, scope): [`PROJECT.md`](PROJECT.md).  
-Learning path: [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md).  
-E2E walkthrough: [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md).  
 Diagnose: Cursor `/diagnose` or `bash .cursor/skills/diagnose-event-ledger/scripts/diagnose.sh`.
 
 ---
@@ -290,8 +288,6 @@ Both services use `server.shutdown=graceful` (30s phase). Gateway pauses outbox 
 ├── SPECS.md
 ├── PROJECT.md
 ├── README.md
-├── LEARNING_GUIDE.md
-├── E2E_TESTING_GUIDE.md
 ├── pom.xml
 ├── docker-compose.yml
 ├── otel-collector-config.yaml
