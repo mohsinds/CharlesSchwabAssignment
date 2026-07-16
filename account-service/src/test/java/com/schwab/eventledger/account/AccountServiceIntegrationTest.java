@@ -2,6 +2,10 @@ package com.schwab.eventledger.account;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Story;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,6 +22,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Epic("Account Service")
+@Feature("Ledger")
 @SpringBootTest
 @AutoConfigureMockMvc
 class AccountServiceIntegrationTest {
@@ -29,6 +35,8 @@ class AccountServiceIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
+    @Story("Idempotency and out-of-order balance")
+    @DisplayName("Applies CREDIT/DEBIT idempotently and computes balance")
     void appliesTransactionsIdempotentlyAndHandlesOutOfOrderBalance() throws Exception {
         String accountId = "acct-order-1";
 
@@ -38,7 +46,6 @@ class AccountServiceIntegrationTest {
         postTxn(accountId, "evt-earlier", "DEBIT", "40.00", "2026-05-15T14:00:00Z")
                 .andExpect(status().isCreated());
 
-        // duplicate must not change balance
         postTxn(accountId, "evt-later", "CREDIT", "100.00", "2026-05-15T15:00:00Z")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eventId").value("evt-later"));
@@ -53,6 +60,29 @@ class AccountServiceIntegrationTest {
         mockMvc.perform(get("/accounts/{accountId}", accountId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recentTransactions.length()").value(2));
+    }
+
+    @Test
+    @Story("eventId conflict")
+    @DisplayName("Same eventId on a different account returns 409")
+    void rejectsEventIdAppliedToDifferentAccount() throws Exception {
+        postTxn("acct-conflict-a", "evt-shared-1", "CREDIT", "10.00", "2026-05-15T14:00:00Z")
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/accounts/{accountId}/transactions", "acct-conflict-b")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId": "evt-shared-1",
+                                  "type": "CREDIT",
+                                  "amount": 10.00,
+                                  "currency": "USD",
+                                  "eventTimestamp": "2026-05-15T14:00:00Z"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value(org.hamcrest.Matchers.containsString("different account")));
     }
 
     @Test
