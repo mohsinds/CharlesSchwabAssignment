@@ -9,6 +9,7 @@ import com.schwab.eventledger.account.api.TransactionRequest;
 import com.schwab.eventledger.account.api.TransactionResponse;
 import com.schwab.eventledger.account.domain.TransactionEntity;
 import com.schwab.eventledger.account.domain.TransactionRepository;
+import com.schwab.eventledger.account.metrics.TransactionMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -31,10 +32,15 @@ public class AccountLedgerService {
 
     private final TransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
+    private final TransactionMetrics transactionMetrics;
 
-    public AccountLedgerService(TransactionRepository transactionRepository, ObjectMapper objectMapper) {
+    public AccountLedgerService(
+            TransactionRepository transactionRepository,
+            ObjectMapper objectMapper,
+            TransactionMetrics transactionMetrics) {
         this.transactionRepository = transactionRepository;
         this.objectMapper = objectMapper;
+        this.transactionMetrics = transactionMetrics;
     }
 
     public record ApplyResult(TransactionResponse response, boolean created) {
@@ -50,6 +56,7 @@ public class AccountLedgerService {
                         "eventId already applied to a different account");
             }
             log.info("Duplicate transaction ignored eventId={} accountId={}", request.getEventId(), accountId);
+            transactionMetrics.recordApplied("duplicate");
             return new ApplyResult(toResponse(txn), false);
         }
 
@@ -64,8 +71,12 @@ public class AccountLedgerService {
         entity.setAppliedAt(Instant.now());
 
         TransactionEntity saved = transactionRepository.save(entity);
+        transactionMetrics.recordApplied("created");
+        String eventId = saved.getEventId();
+        String type = saved.getType().name();
+        BigDecimal amount = saved.getAmount();
         log.info("Applied transaction eventId={} accountId={} type={} amount={}",
-                saved.getEventId(), accountId, saved.getType(), saved.getAmount());
+                eventId, accountId, type, amount);
         return new ApplyResult(toResponse(saved), true);
     }
 

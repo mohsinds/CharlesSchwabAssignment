@@ -67,6 +67,7 @@ Observability (docker compose):
 | Async fallback | Local H2 outbox + scheduled drain |
 | Tracing | Micrometer Tracing → OTLP → OpenTelemetry Collector → Jaeger |
 | Metrics | Micrometer + `/actuator/prometheus` |
+| Structured logs | JSON (`timestamp`, `level`, `service`, `traceId`) via Logstash encoder |
 | Contracts | Pact (consumer Gateway / provider Account) |
 | Run | Docker Compose |
 

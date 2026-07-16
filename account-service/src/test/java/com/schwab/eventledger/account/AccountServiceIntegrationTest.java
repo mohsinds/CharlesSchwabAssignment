@@ -93,6 +93,17 @@ class AccountServiceIntegrationTest {
                 .andExpect(jsonPath("$.service").value("account-service"));
     }
 
+    @Test
+    void prometheusExposesCustomTransactionMetric() throws Exception {
+        postTxn("acct-metric", "evt-metric-1", "CREDIT", "10.00", "2026-05-15T14:00:00Z")
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .contains("transactions_applied_total"));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postTxn(
             String accountId, String eventId, String type, String amount, String ts) throws Exception {
         String body = """

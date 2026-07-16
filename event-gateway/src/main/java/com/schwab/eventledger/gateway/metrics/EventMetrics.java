@@ -7,6 +7,10 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
+/**
+ * Custom Gateway metrics exposed on {@code GET /actuator/prometheus}.
+ * Primary assignment metric: {@code events_submitted_total} (request outcomes by result tag).
+ */
 @Component
 public class EventMetrics {
 
@@ -22,6 +26,14 @@ public class EventMetrics {
         this.drainSuccess = Counter.builder("outbox_drain_success_total")
                 .description("Successful outbox drain applications")
                 .register(meterRegistry);
+
+        // Eager registration so the series is visible before the first submit
+        for (String result : new String[]{"created", "duplicate", "queued", "rejected", "rate_limited", "unavailable"}) {
+            Counter.builder("events_submitted_total")
+                    .description("Event submission outcomes")
+                    .tag("result", result)
+                    .register(meterRegistry);
+        }
     }
 
     public void recordSubmit(String result) {
