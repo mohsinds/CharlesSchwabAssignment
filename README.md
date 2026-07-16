@@ -2,9 +2,6 @@
 
 Take-home for Charles Schwab: two independently runnable Spring Boot microservices that ingest financial transaction events with **idempotency**, **out-of-order balance correctness**, **distributed tracing**, **resiliency**, and **graceful degradation**.
 
-Architecture and decisions are locked in [`SPECS.md`](SPECS.md).  
-New to the codebase? Start with the plain-language [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md).  
-Hands-on walkthrough (Swagger + H2): [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md).
 
 ---
 
@@ -182,7 +179,7 @@ curl -s -X POST http://localhost:8080/events \
   }'
 ```
 
-Prefer a browser? Use Swagger and inspect both H2 databases with [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md).
+Prefer a browser? Use Swagger and inspect both H2 databases
 
 ---
 
@@ -265,8 +262,6 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 .
 ├── SPECS.md
 ├── README.md
-├── LEARNING_GUIDE.md
-├── E2E_TESTING_GUIDE.md
 ├── pom.xml
 ├── docker-compose.yml
 ├── otel-collector-config.yaml
