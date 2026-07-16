@@ -1,0 +1,30 @@
+---
+description: Always keep README.md and SPECS.md in sync when behavior, APIs, config, or architecture change
+alwaysApply: true
+---
+
+# Keep README.md and SPECS.md current
+
+After any change that affects **behavior, APIs, configuration, observability, resiliency, scope, or how to run the project**, update documentation in the same turn.
+
+## Must update when
+
+| Change type | Update |
+|-------------|--------|
+| New/changed endpoint, status code, or payload | `SPECS.md` contracts + `README.md` endpoint tables |
+| New config flag / env var | Both docs + example in README |
+| Resiliency / shutdown / retry behavior | SPECS § resiliency + README |
+| Observability stack | README URLs + SPECS observability |
+| In/out of scope | SPECS non-goals + `PROJECT.md` |
+| New module/file of architectural significance | SPECS layout + `PROJECT.md` function index |
+
+## Also update
+
+- [`PROJECT.md`](PROJECT.md) — request lifecycle, feature matrix, function references
+- [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md) — only when operator walkthrough steps change
+
+## Do not
+
+- Skip docs because the change “is small”
+- Leave SPECS contradicting code
+- Add speculative features to docs that are not implemented

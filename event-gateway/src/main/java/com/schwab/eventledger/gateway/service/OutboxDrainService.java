@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.schwab.eventledger.gateway.api.EventRequest;
 import com.schwab.eventledger.gateway.client.AccountServiceClient;
+import com.schwab.eventledger.gateway.config.GracefulShutdownGuard;
 import com.schwab.eventledger.gateway.domain.EventEntity;
 import com.schwab.eventledger.gateway.domain.EventRepository;
 import com.schwab.eventledger.gateway.domain.EventStatus;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +33,7 @@ public class OutboxDrainService {
     private final EventMetrics eventMetrics;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final GracefulShutdownGuard gracefulShutdownGuard;
 
     public OutboxDrainService(
             EventRepository eventRepository,
@@ -38,17 +41,24 @@ public class OutboxDrainService {
             CircuitBreakerRegistry circuitBreakerRegistry,
             EventMetrics eventMetrics,
             ObjectMapper objectMapper,
-            TransactionTemplate transactionTemplate) {
+            TransactionTemplate transactionTemplate,
+            GracefulShutdownGuard gracefulShutdownGuard) {
         this.eventRepository = eventRepository;
         this.accountServiceClient = accountServiceClient;
         this.circuitBreakerRegistry = circuitBreakerRegistry;
         this.eventMetrics = eventMetrics;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
+        this.gracefulShutdownGuard = gracefulShutdownGuard;
     }
 
     @Scheduled(fixedDelayString = "${gateway.outbox.drain-interval-ms:2000}")
     public void drain() {
+        if (gracefulShutdownGuard.isShuttingDown()) {
+            log.debug("Skipping outbox drain; graceful shutdown in progress");
+            return;
+        }
+
         CircuitBreaker.State state = circuitBreakerRegistry.circuitBreaker("accountService").getState();
         if (state == CircuitBreaker.State.OPEN) {
             log.debug("Skipping outbox drain; circuit breaker is OPEN");
@@ -57,6 +67,10 @@ public class OutboxDrainService {
 
         List<EventEntity> pending = eventRepository.findByStatusOrderByCreatedAtAsc(EventStatus.PENDING);
         for (EventEntity event : pending) {
+            if (gracefulShutdownGuard.isShuttingDown()) {
+                log.info("Stopping outbox drain early due to shutdown; remaining PENDING events stay durable until JVM exit");
+                return;
+            }
             tryApply(event.getEventId());
         }
     }
@@ -76,6 +90,18 @@ public class OutboxDrainService {
                 eventRepository.save(managed);
                 eventMetrics.recordDrainSuccess();
                 log.info("Outbox drained eventId={} to APPLIED", managed.getEventId());
+            } catch (RestClientResponseException ex) {
+                managed.setAttemptCount(managed.getAttemptCount() + 1);
+                if (ex.getStatusCode().is4xxClientError()) {
+                    managed.setStatus(EventStatus.REJECTED);
+                    eventRepository.save(managed);
+                    log.warn("Outbox event permanently rejected eventId={} status={}: {}",
+                            managed.getEventId(), ex.getStatusCode().value(), ex.getMessage());
+                    return;
+                }
+                eventRepository.save(managed);
+                log.warn("Outbox drain failed eventId={} attempt={}: {}",
+                        managed.getEventId(), managed.getAttemptCount(), ex.toString());
             } catch (Exception ex) {
                 managed.setAttemptCount(managed.getAttemptCount() + 1);
                 eventRepository.save(managed);

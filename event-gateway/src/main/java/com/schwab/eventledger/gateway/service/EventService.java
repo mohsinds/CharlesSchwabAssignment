@@ -2,6 +2,7 @@ package com.schwab.eventledger.gateway.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.schwab.eventledger.gateway.api.EventRequest;
 import com.schwab.eventledger.gateway.api.EventResponse;
@@ -62,6 +63,10 @@ public class EventService {
         if (existing.isPresent()) {
             EventEntity event = existing.get();
             eventMetrics.recordSubmit("duplicate");
+            if (event.getStatus() == EventStatus.REJECTED) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Event was previously rejected by Account Service");
+            }
             HttpStatus status = event.getStatus() == EventStatus.PENDING
                     ? HttpStatus.ACCEPTED
                     : HttpStatus.OK;
@@ -76,13 +81,34 @@ public class EventService {
         } catch (RestClientResponseException ex) {
             if (ex.getStatusCode().is4xxClientError()) {
                 eventMetrics.recordSubmit("rejected");
-                throw new ResponseStatusException(HttpStatus.valueOf(ex.getStatusCode().value()),
-                        "Account Service rejected the transaction");
+                throw new ResponseStatusException(
+                        HttpStatus.valueOf(ex.getStatusCode().value()),
+                        extractAccountMessage(ex));
             }
             return handleAccountUnavailable(request, ex);
         } catch (CallNotPermittedException | RestClientException ex) {
             return handleAccountUnavailable(request, ex);
         }
+    }
+
+    private String extractAccountMessage(RestClientResponseException ex) {
+        String body = ex.getResponseBodyAsString();
+        if (body != null && !body.isBlank()) {
+            try {
+                JsonNode node = objectMapper.readTree(body);
+                JsonNode message = node.get("message");
+                if (message != null && !message.asText().isBlank()) {
+                    return message.asText();
+                }
+            } catch (JsonProcessingException ignored) {
+                // fall through
+            }
+        }
+        String statusText = ex.getStatusText();
+        if (statusText != null && !statusText.isBlank()) {
+            return "Account Service rejected the transaction: " + statusText;
+        }
+        return "Account Service rejected the transaction";
     }
 
     private SubmitResult handleAccountUnavailable(EventRequest request, Exception ex) {

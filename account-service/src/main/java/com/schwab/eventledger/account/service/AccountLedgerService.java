@@ -7,8 +7,10 @@ import com.schwab.eventledger.account.api.AccountResponse;
 import com.schwab.eventledger.account.api.BalanceResponse;
 import com.schwab.eventledger.account.api.TransactionRequest;
 import com.schwab.eventledger.account.api.TransactionResponse;
+import com.schwab.eventledger.account.config.AccountProperties;
 import com.schwab.eventledger.account.domain.TransactionEntity;
 import com.schwab.eventledger.account.domain.TransactionRepository;
+import com.schwab.eventledger.account.domain.TransactionType;
 import com.schwab.eventledger.account.metrics.TransactionMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,14 +35,17 @@ public class AccountLedgerService {
     private final TransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
     private final TransactionMetrics transactionMetrics;
+    private final AccountProperties accountProperties;
 
     public AccountLedgerService(
             TransactionRepository transactionRepository,
             ObjectMapper objectMapper,
-            TransactionMetrics transactionMetrics) {
+            TransactionMetrics transactionMetrics,
+            AccountProperties accountProperties) {
         this.transactionRepository = transactionRepository;
         this.objectMapper = objectMapper;
         this.transactionMetrics = transactionMetrics;
+        this.accountProperties = accountProperties;
     }
 
     public record ApplyResult(TransactionResponse response, boolean created) {
@@ -60,6 +65,8 @@ public class AccountLedgerService {
             return new ApplyResult(toResponse(txn), false);
         }
 
+        rejectIfNegativeBalanceDisallowed(accountId, request);
+
         TransactionEntity entity = new TransactionEntity();
         entity.setEventId(request.getEventId());
         entity.setAccountId(accountId);
@@ -78,6 +85,24 @@ public class AccountLedgerService {
         log.info("Applied transaction eventId={} accountId={} type={} amount={}",
                 eventId, accountId, type, amount);
         return new ApplyResult(toResponse(saved), true);
+    }
+
+    private void rejectIfNegativeBalanceDisallowed(String accountId, TransactionRequest request) {
+        if (accountProperties.isAllowedNegativeBalance()) {
+            return;
+        }
+        if (request.getType() != TransactionType.DEBIT) {
+            return;
+        }
+        BigDecimal current = Optional.ofNullable(transactionRepository.computeBalance(accountId))
+                .orElse(BigDecimal.ZERO);
+        BigDecimal projected = current.subtract(request.getAmount());
+        if (projected.compareTo(BigDecimal.ZERO) < 0) {
+            log.warn("Rejected debit that would go negative eventId={} accountId={} balance={} amount={}",
+                    request.getEventId(), accountId, current, request.getAmount());
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Insufficient funds: debit would result in negative balance (allowed-negative-balance=false)");
+        }
     }
 
     @Transactional(readOnly = true)

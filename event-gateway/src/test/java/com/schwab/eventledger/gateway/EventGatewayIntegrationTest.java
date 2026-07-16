@@ -137,6 +137,56 @@ class EventGatewayIntegrationTest {
     }
 
     @Test
+    void forwardsInsufficientFundsAs422WithAccountMessage() throws Exception {
+        wireMock.stubFor(WireMock.post(urlPathMatching("/accounts/.*/transactions"))
+                .willReturn(aResponse()
+                        .withStatus(422)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                  "timestamp": "2026-05-15T14:00:00Z",
+                                  "status": 422,
+                                  "error": "Unprocessable Entity",
+                                  "message": "Insufficient funds: debit would result in negative balance (allowed-negative-balance=false)",
+                                  "details": []
+                                }
+                                """)));
+
+        postEvent("evt-nsf-1", "acct-nsf", "DEBIT", "99.00", "2026-05-15T14:00:00Z")
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message")
+                        .value(org.hamcrest.Matchers.containsString("Insufficient funds")));
+
+        assertThat(eventRepository.findById("evt-nsf-1")).isEmpty();
+    }
+
+    @Test
+    void marksOutboxRejectedOnPermanentAccount4xx() throws Exception {
+        wireMock.stubFor(WireMock.post(urlPathMatching("/accounts/.*/transactions"))
+                .willReturn(aResponse().withStatus(503)));
+
+        postEvent("evt-rej-1", "acct-rej", "DEBIT", "10.00", "2026-05-15T14:00:00Z")
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        circuitBreakerRegistry.circuitBreaker("accountService").reset();
+        wireMock.stubFor(WireMock.post(urlPathMatching("/accounts/.*/transactions"))
+                .willReturn(aResponse()
+                        .withStatus(422)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"status":422,"error":"Unprocessable Entity","message":"Insufficient funds","details":[]}
+                                """)));
+
+        outboxDrainService.drain();
+
+        assertThat(eventRepository.findById("evt-rej-1")).isPresent()
+                .get()
+                .extracting(e -> e.getStatus())
+                .isEqualTo(EventStatus.REJECTED);
+    }
+
+    @Test
     void queuesWhenAccountUnavailableAndDrainsWhenRecovered() throws Exception {
         wireMock.stubFor(WireMock.post(urlPathMatching("/accounts/.*/transactions"))
                 .willReturn(aResponse().withStatus(503)));

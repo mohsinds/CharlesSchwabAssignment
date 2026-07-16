@@ -1,9 +1,12 @@
 server:
   port: 8081
+  shutdown: graceful
 
 spring:
   application:
     name: account-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:h2:mem:accountdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
     driver-class-name: org.h2.Driver
@@ -76,6 +79,10 @@ app:
 loki:
   url: ${LOKI_URL:http://localhost:3100/loki/api/v1/push}
   enabled: ${LOKI_ENABLED:true}
+
+account:
+  # When false, DEBIT that would make balance < 0 returns HTTP 422
+  allowed-negative-balance: ${ACCOUNT_ALLOWED_NEGATIVE_BALANCE:true}
 
 logging:
   level:

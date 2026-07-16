@@ -1,0 +1,15 @@
+---
+description: Event Ledger project conventions — read PROJECT.md for architecture and scope
+alwaysApply: true
+---
+
+# Event Ledger conventions
+
+- Canonical architecture & scope: [`PROJECT.md`](PROJECT.md), locked decisions: [`SPECS.md`](SPECS.md)
+- Java 21 + Spring Boot 3.4 multi-module (`event-gateway`, `account-service`)
+- Sync REST only between services; no Kafka broker in v1
+- Prefer existing patterns: `ErrorResponse`, `ResponseStatusException`, Resilience4j annotations
+- Tests: JUnit 5 + MockMvc (+ WireMock/Pact in gateway)
+- Observability: JSON logs → Loki, OTLP → Jaeger, Micrometer → Prometheus/Grafana
+
+When diagnosing health, run the **diagnose-event-ledger** skill or `/diagnose` command.

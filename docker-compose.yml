@@ -9,6 +9,7 @@ services:
       SPRING_APPLICATION_NAME: account-service
       SERVER_PORT: "8081"
       APP_ENV: local
+      ACCOUNT_ALLOWED_NEGATIVE_BALANCE: "true"
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_ENABLED: "true"
       LOKI_URL: http://loki:3100/loki/api/v1/push
@@ -29,6 +30,7 @@ services:
       APP_ENV: local
       GATEWAY_ACCOUNT_SERVICE_BASE_URL: http://account-service:8081
       GATEWAY_ASYNC_FALLBACK_ENABLED: "true"
+      GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS: "3"
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_ENABLED: "true"
       LOKI_URL: http://loki:3100/loki/api/v1/push

@@ -2,6 +2,11 @@
 
 Take-home for Charles Schwab: two independently runnable Spring Boot microservices that ingest financial transaction events with **idempotency**, **out-of-order balance correctness**, **distributed tracing**, **resiliency**, and **graceful degradation**.
 
+Architecture and decisions: [`SPECS.md`](SPECS.md).  
+Project knowledge (lifecycle, function index, scope): [`PROJECT.md`](PROJECT.md).  
+Learning path: [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md).  
+E2E walkthrough: [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md).  
+Diagnose: Cursor `/diagnose` or `bash .cursor/skills/diagnose-event-ledger/scripts/diagnose.sh`.
 
 ---
 
@@ -208,7 +213,7 @@ Coverage includes:
 **Primary: Circuit breaker** (Resilience4j) on Gateway → Account calls, paired with:
 
 - **Timeouts** on the HTTP client (connect 1s / read 2s)
-- **Retry** with exponential backoff + randomized jitter (max 3 attempts; no retry on 4xx or open circuit)
+- **Retry** with exponential backoff + randomized jitter (`GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS`, default 3; no retry on 4xx or open circuit)
 
 **Why circuit breaker**
 
@@ -236,6 +241,28 @@ Toggle strict mode:
 GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 ```
 
+### Negative balance guard (Account)
+
+Default allows negative balances (`account.allowed-negative-balance=true`). Disable to reject overdraft DEBITs with **422**:
+
+```bash
+ACCOUNT_ALLOWED_NEGATIVE_BALANCE=false mvn -pl account-service spring-boot:run
+```
+
+Gateway forwards Account’s 422 and message (e.g. `Insufficient funds: ...`). Outbox items that later hit a permanent 4xx become `REJECTED` (not retried forever).
+
+### Configurable Account retry
+
+Retry attempts on Gateway → Account (paired with the circuit breaker):
+
+```bash
+GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS=5 GATEWAY_ACCOUNT_RETRY_WAIT=200ms mvn -pl event-gateway spring-boot:run
+```
+
+### Graceful shutdown
+
+Both services use `server.shutdown=graceful` (30s phase). Gateway pauses outbox drain on shutdown so in-flight HTTP finishes; PENDING rows remain until the process exits (H2 is in-memory for this exercise).
+
 ---
 
 ## Bonus features implemented
@@ -245,10 +272,10 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 | OTel Collector + Jaeger | `docker-compose.yml` (`otel-collector`, `jaeger`) + Grafana Jaeger Monitor |
 | Prometheus metrics | `/actuator/prometheus` + custom counters/gauges + common tags |
 | Grafana + Loki | Log push from both services; provisioned dashboards (local Maven + Compose) |
-| Retry + exp backoff + jitter | Resilience4j Retry on Account client |
+| Retry + exp backoff + jitter | Resilience4j Retry on Account client (`GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS`) |
 | Rate limiting | Resilience4j RateLimiter on `POST /events` → `429` |
 | Pact contracts | `pacts/event-gateway-account-service.json` + consumer/provider tests |
-| Async local queue | H2 outbox + `@Scheduled` drain |
+| Async local queue | H2 outbox + `@Scheduled` drain (`PENDING` / `APPLIED` / `REJECTED`) |
 
 ### What was intentionally not built
 
@@ -261,7 +288,10 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 ```text
 .
 ├── SPECS.md
+├── PROJECT.md
 ├── README.md
+├── LEARNING_GUIDE.md
+├── E2E_TESTING_GUIDE.md
 ├── pom.xml
 ├── docker-compose.yml
 ├── otel-collector-config.yaml
@@ -269,8 +299,9 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 ├── prometheus.local.yml
 ├── loki-config.yaml
 ├── grafana/
-│   ├── provisioning/
-│   └── dashboards/
+├── .cursor/rules/
+├── .cursor/commands/
+├── .cursor/skills/
 ├── pacts/
 ├── event-gateway/
 └── account-service/

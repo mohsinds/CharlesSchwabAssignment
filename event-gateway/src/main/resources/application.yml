@@ -1,9 +1,12 @@
 server:
   port: 8080
+  shutdown: graceful
 
 spring:
   application:
     name: event-gateway
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:h2:mem:gatewaydb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
     driver-class-name: org.h2.Driver
@@ -39,6 +42,9 @@ gateway:
     base-url: ${GATEWAY_ACCOUNT_SERVICE_BASE_URL:http://localhost:8081}
     connect-timeout: 1s
     read-timeout: 2s
+    retry:
+      # Bound to resilience4j.retry.instances.accountService.maxAttempts
+      max-attempts: ${GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS:3}
   async-fallback:
     enabled: ${GATEWAY_ASYNC_FALLBACK_ENABLED:true}
   outbox:
@@ -65,8 +71,8 @@ resilience4j:
   retry:
     instances:
       accountService:
-        maxAttempts: 3
-        waitDuration: 200ms
+        maxAttempts: ${GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS:3}
+        waitDuration: ${GATEWAY_ACCOUNT_RETRY_WAIT:200ms}
         enableExponentialBackoff: true
         exponentialBackoffMultiplier: 2
         enableRandomizedWait: true

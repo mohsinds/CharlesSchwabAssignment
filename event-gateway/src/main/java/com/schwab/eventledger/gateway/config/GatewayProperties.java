@@ -27,6 +27,7 @@ public class GatewayProperties {
         private String baseUrl = "http://localhost:8081";
         private Duration connectTimeout = Duration.ofSeconds(1);
         private Duration readTimeout = Duration.ofSeconds(2);
+        private final Retry retry = new Retry();
 
         public String getBaseUrl() {
             return baseUrl;
@@ -50,6 +51,23 @@ public class GatewayProperties {
 
         public void setReadTimeout(Duration readTimeout) {
             this.readTimeout = readTimeout;
+        }
+
+        public Retry getRetry() {
+            return retry;
+        }
+    }
+
+    public static class Retry {
+        /** Documented mirror of resilience4j.retry.instances.accountService.maxAttempts */
+        private int maxAttempts = 3;
+
+        public int getMaxAttempts() {
+            return maxAttempts;
+        }
+
+        public void setMaxAttempts(int maxAttempts) {
+            this.maxAttempts = maxAttempts;
         }
     }
 

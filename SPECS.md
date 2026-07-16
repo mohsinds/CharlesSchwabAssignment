@@ -20,6 +20,9 @@ Upstream systems may deliver events **out of order** and **more than once**. The
 - **No Kafka / RabbitMQ broker** as a runtime dependency. Inter-service communication is **synchronous REST**. The bonus async fallback uses a **Gateway-local H2 outbox**, not a message bus.
 - No shared database or shared in-process state between services.
 - No authentication / authorization (out of exercise scope).
+- H2 is **in-memory** (assignment isolation); graceful shutdown preserves in-flight requests within a process lifetime, not cross-restart durability.
+
+See also [`PROJECT.md`](PROJECT.md) for the full in/out-of-scope matrix and function index.
 
 ### Production evolution (interview note)
 
@@ -184,9 +187,10 @@ Accounts are implicit: created/derived from first successful transaction.
 3. If eventId exists:
      APPLIED → 200 + body
      PENDING → 202 + body
+     REJECTED → 422
 4. Call Account via Retry → CB → Timeout
      success → persist APPLIED → 201
-     4xx → map client error, do not persist
+     4xx → map same status + Account message, do not persist (e.g. 422 NSF)
      unavailable / CB open / timeout:
        if async-fallback.enabled → persist PENDING → 202
        else → 503
@@ -195,15 +199,24 @@ Accounts are implicit: created/derived from first successful transaction.
 ### 6.2 Outbox drain
 
 - Interval ~2s
-- Skip while circuit is OPEN
+- Skip while circuit is OPEN or Gateway is shutting down
 - Process PENDING oldest-first
 - Account apply is idempotent → safe redelivery
-- On success → `APPLIED`; on failure → increment `attempt_count`, remain `PENDING`
+- On success → `APPLIED`
+- On permanent Account **4xx** → `REJECTED` (terminal; no infinite retry)
+- On transient failure → increment `attempt_count`, remain `PENDING`
 
 ### 6.3 Out-of-order
 
 - Listings: `ORDER BY event_timestamp ASC, event_id ASC`
 - Balance: ledger aggregation, not arrival-order running total
+
+### 6.4 Negative balance guard (Account)
+
+- Config: `account.allowed-negative-balance` / `ACCOUNT_ALLOWED_NEGATIVE_BALANCE` (default **true**)
+- When **false**, a DEBIT whose projected balance (`current − amount`) is &lt; 0 → **422 Unprocessable Entity** with message containing `Insufficient funds`
+- Gateway forwards that status and message on sync submit
+- Caveat: arrival-order NSF check can reject a debit-before-credit that would be valid after event-time reordering
 
 ---
 
@@ -212,10 +225,11 @@ Accounts are implicit: created/derived from first successful transaction.
 | Component | Settings (defaults) |
 |-----------|---------------------|
 | RestClient timeout | connect 1s, read 2s |
-| Retry | maxAttempts=3, exponential backoff + randomized jitter; retry IO/5xx/timeout only |
+| Retry | `maxAttempts` = `GATEWAY_ACCOUNT_RETRY_MAX_ATTEMPTS` (default 3); wait = `GATEWAY_ACCOUNT_RETRY_WAIT` (default 200ms); exponential backoff + randomized jitter; retry IO/5xx/timeout only |
 | CircuitBreaker | failureRateThreshold=50%, slidingWindowSize=10, waitDurationInOpenState=10s |
 | RateLimiter | limitForPeriod=20, limitRefreshPeriod=1s on `POST /events` |
 | Async fallback | `gateway.async-fallback.enabled=true` (default) |
+| Graceful shutdown | `server.shutdown=graceful`; `spring.lifecycle.timeout-per-shutdown-phase=30s`; Gateway pauses outbox drain |
 
 **Why circuit breaker (primary interview answer):** After repeated Account failures, stop calling and fail fast (into 202 queue or 503) so Gateway threads are not exhausted. Retry handles blips; CB handles sustained outage; jitter reduces thundering herd.
 
@@ -273,6 +287,7 @@ Broker-less; pacts committed under `pacts/`.
 ```text
 .
 ├── SPECS.md
+├── PROJECT.md
 ├── README.md
 ├── pom.xml
 ├── docker-compose.yml
@@ -281,6 +296,7 @@ Broker-less; pacts committed under `pacts/`.
 ├── prometheus.local.yml
 ├── loki-config.yaml
 ├── grafana/
+├── .cursor/
 ├── pacts/
 ├── event-gateway/
 └── account-service/
