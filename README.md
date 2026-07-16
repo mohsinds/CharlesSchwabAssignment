@@ -3,7 +3,8 @@
 Take-home for Charles Schwab: two independently runnable Spring Boot microservices that ingest financial transaction events with **idempotency**, **out-of-order balance correctness**, **distributed tracing**, **resiliency**, and **graceful degradation**.
 
 Architecture and decisions are locked in [`SPECS.md`](SPECS.md).  
-New to the codebase? Start with the plain-language [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md).
+New to the codebase? Start with the plain-language [`LEARNING_GUIDE.md`](LEARNING_GUIDE.md).  
+Hands-on walkthrough (Swagger + H2): [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md).
 
 ---
 
@@ -110,6 +111,10 @@ docker compose up --build
 |---------|-----|
 | Event Gateway | http://localhost:8080 |
 | Account Service | http://localhost:8081 |
+| Gateway Swagger UI | http://localhost:8080/swagger-ui.html |
+| Account Swagger UI | http://localhost:8081/swagger-ui.html |
+| Gateway H2 console | http://localhost:8080/h2-console |
+| Account H2 console | http://localhost:8081/h2-console |
 | Jaeger UI | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
 
@@ -145,6 +150,8 @@ curl -s -X POST http://localhost:8080/events \
     "metadata": {"source": "mainframe-batch", "batchId": "B-9042"}
   }'
 ```
+
+Prefer a browser? Use Swagger and inspect both H2 databases with [`E2E_TESTING_GUIDE.md`](E2E_TESTING_GUIDE.md).
 
 ---
 
@@ -226,6 +233,8 @@ GATEWAY_ASYNC_FALLBACK_ENABLED=false mvn -pl event-gateway spring-boot:run
 .
 ├── SPECS.md
 ├── README.md
+├── LEARNING_GUIDE.md
+├── E2E_TESTING_GUIDE.md
 ├── pom.xml
 ├── docker-compose.yml
 ├── otel-collector-config.yaml

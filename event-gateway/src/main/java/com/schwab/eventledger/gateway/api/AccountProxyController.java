@@ -3,6 +3,8 @@ package com.schwab.eventledger.gateway.api;
 import com.schwab.eventledger.gateway.config.GatewayProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import java.util.Map;
  * Failures surface as 503 when Account Service is unreachable.
  */
 @RestController
+@Tag(name = "Accounts (proxy)", description = "Proxy balance/account queries to Account Service")
 public class AccountProxyController {
 
     private static final Logger log = LoggerFactory.getLogger(AccountProxyController.class);
@@ -32,6 +35,8 @@ public class AccountProxyController {
     @GetMapping("/accounts/{accountId}/balance")
     @CircuitBreaker(name = "accountService")
     @Retry(name = "accountService")
+    @Operation(summary = "Get account balance via Gateway",
+            description = "Proxies to Account Service. Returns 503 if Account is unreachable.")
     public Map<?, ?> getBalance(@PathVariable String accountId) {
         try {
             log.info("Proxying balance query accountId={}", accountId);
@@ -48,6 +53,8 @@ public class AccountProxyController {
     @GetMapping("/accounts/{accountId}")
     @CircuitBreaker(name = "accountService")
     @Retry(name = "accountService")
+    @Operation(summary = "Get account detail via Gateway",
+            description = "Proxies to Account Service. Returns 503 if Account is unreachable.")
     public Map<?, ?> getAccount(@PathVariable String accountId) {
         try {
             log.info("Proxying account query accountId={}", accountId);
