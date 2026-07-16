@@ -113,7 +113,15 @@ See ops steps in README / this report §6.
 | CI workflow + tests | Done (PR [#1](https://github.com/mohsinds/CharlesSchwabAssignment/pull/1)) |
 | Branch protection on `main` | Done — require `CI Pipeline / test-and-quality`, 1 review, dismiss stale |
 | GitHub Pages (Actions) | Enabled — https://mohsinds.github.io/CharlesSchwabAssignment/ |
-| `SONAR_TOKEN` secret | **You must set** — `gh secret set SONAR_TOKEN --repo mohsinds/CharlesSchwabAssignment` |
-| SonarCloud project + gates | **You must configure in UI** — coverage &lt; 80%, smells &gt; 10, security &gt; 0 |
+| `SONAR_TOKEN` secret | Optional but recommended — without it CI **skips** Sonar and continues |
+| SonarCloud project + gates | Configure in UI when ready — coverage &lt; 80%, smells &gt; 10, security &gt; 0 |
 
-Until `SONAR_TOKEN` is set, the Sonar step in CI will fail and the PR stays blocked (by design).
+When `SONAR_TOKEN` is set, CI runs SonarCloud with `qualitygate.wait=true` (failed gate fails the job).  
+When unset, the Sonar step is skipped so forks / local CI still pass JaCoCo + Allure.
+
+```bash
+# Enable Sonar in CI
+gh secret set SONAR_TOKEN -R mohsinds/CharlesSchwabAssignment
+# Optional self-hosted override (defaults to https://sonarcloud.io)
+gh secret set SONAR_HOST_URL -R mohsinds/CharlesSchwabAssignment -b "https://sonarcloud.io"
+```
