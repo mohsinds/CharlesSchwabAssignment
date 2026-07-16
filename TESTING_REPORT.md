@@ -108,9 +108,12 @@ See ops steps in README / this report §6.
 
 ## 6. Ops checklist
 
-1. Create SonarCloud project linked to `mohsinds/CharlesSchwabAssignment`
-2. Set quality gate conditions above
-3. `gh secret set SONAR_TOKEN ...`
-4. Push/PR to `main` → wait for green `test-and-quality`
-5. Enable GitHub Pages (source: GitHub Actions)
-6. Apply branch protection on `main`
+| Step | Status |
+|------|--------|
+| CI workflow + tests | Done (PR [#1](https://github.com/mohsinds/CharlesSchwabAssignment/pull/1)) |
+| Branch protection on `main` | Done — require `CI Pipeline / test-and-quality`, 1 review, dismiss stale |
+| GitHub Pages (Actions) | Enabled — https://mohsinds.github.io/CharlesSchwabAssignment/ |
+| `SONAR_TOKEN` secret | **You must set** — `gh secret set SONAR_TOKEN --repo mohsinds/CharlesSchwabAssignment` |
+| SonarCloud project + gates | **You must configure in UI** — coverage &lt; 80%, smells &gt; 10, security &gt; 0 |
+
+Until `SONAR_TOKEN` is set, the Sonar step in CI will fail and the PR stays blocked (by design).
